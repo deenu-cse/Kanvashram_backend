@@ -1,0 +1,11 @@
+# Node modules folder ignore kare
+node_modules/
+
+# Log files ignore kare
+*.log
+
+# Environment files
+.env
+
+# Package lock agar ignore karna chaho
+package-lock.json
