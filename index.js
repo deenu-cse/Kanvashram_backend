@@ -35,6 +35,11 @@ app.use('/user', require('./userRoutes/bookingRoutes'))
 app.use('/user', require('./userRoutes/roomBooking'))
 app.use('/user', require('./userRoutes/auth'))
 
+app.use('/registrations', require('./routes/registration'));
+
+app.use('/donations', require('./routes/donations'));
+app.use('/payments', require('./routes/payments'));
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

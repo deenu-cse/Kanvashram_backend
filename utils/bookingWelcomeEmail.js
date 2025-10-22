@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export async function sendWelcomeEmail({ to, guestName, roomName, checkIn, checkOut, totalPrice, bookingId }) {
   try {
     const { data, error } = await resend.emails.send({
-      from: 'welcome@gurukulkanvashram.com>',
+      from: 'noreply@gurukulkanvashram.com>',
       to,
       subject: `Welcome to Our Ashram - Booking Confirmation`,
       html: `

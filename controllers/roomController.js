@@ -1,4 +1,5 @@
 const Room = require('../models/Rooms');
+const { cloudinary } = require('../middleware/cloudinary');
 
 // Get all rooms with filtering and pagination
 exports.getRooms = async (req, res) => {
@@ -55,8 +56,12 @@ exports.getRoom = async (req, res) => {
 // Create room
 exports.createRoom = async (req, res) => {
   try {
+    // Get image URLs from Cloudinary
+    const images = req.files ? req.files.map(file => file.path) : [];
+
     const roomData = {
       ...req.body,
+      images: images,
       createdBy: req.admin.id
     };
     
@@ -74,9 +79,23 @@ exports.createRoom = async (req, res) => {
 // Update room
 exports.updateRoom = async (req, res) => {
   try {
+    let updateData = { ...req.body };
+
+    // If new images are uploaded, add them to update data
+    if (req.files && req.files.length > 0) {
+      const newImages = req.files.map(file => file.path);
+      
+      // If you want to replace all images
+      updateData.images = newImages;
+      
+      // If you want to keep old images and add new ones
+      const room = await Room.findById(req.params.id);
+      updateData.images = [...room.images, ...newImages];
+    }
+
     const room = await Room.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     ).populate('createdBy', 'name email');
     
@@ -90,14 +109,25 @@ exports.updateRoom = async (req, res) => {
   }
 };
 
-// Delete room
+// Delete room and associated images from Cloudinary
 exports.deleteRoom = async (req, res) => {
   try {
-    const room = await Room.findByIdAndDelete(req.params.id);
+    const room = await Room.findById(req.params.id);
     
     if (!room) {
       return res.status(404).json({ message: 'Room not found' });
     }
+
+    // Delete images from Cloudinary
+    if (room.images && room.images.length > 0) {
+      for (const imageUrl of room.images) {
+        // Extract public_id from Cloudinary URL
+        const publicId = imageUrl.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`hotel-rooms/${publicId}`);
+      }
+    }
+
+    await Room.findByIdAndDelete(req.params.id);
     
     res.json({ message: 'Room deleted successfully' });
   } catch (error) {

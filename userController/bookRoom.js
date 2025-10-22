@@ -1,4 +1,3 @@
-
 const Room = require('../models/Rooms');
 const Booking = require('../models/Booking');
 const { sendWelcomeEmail } = require('../utils/bookingWelcomeEmail');
@@ -14,6 +13,15 @@ exports.createBooking = async (req, res) => {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
 
+    // Validate dates
+    if (checkInDate >= checkOutDate) {
+      return res.status(400).json({ message: 'Check-out date must be after check-in date' });
+    }
+
+    if (checkInDate < new Date().setHours(0, 0, 0, 0)) {
+      return res.status(400).json({ message: 'Check-in date cannot be in the past' });
+    }
+
     const room = await Room.findById(roomId);
     if (!room) {
       return res.status(404).json({ message: 'Room not found' });
@@ -23,22 +31,45 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Room is not available' });
     }
 
+    // Check guest count
+    if (guests > room.maxGuests) {
+      return res.status(400).json({ 
+        message: `This room can only accommodate ${room.maxGuests} guest(s)` 
+      });
+    }
+
     const existingBooking = await Booking.findOne({
       room: roomId,
-      status: { $in: ['confirmed', 'checked-in'] },
+      status: { $in: ['confirmed', 'checked-in'] }, 
       $or: [
         {
-          checkIn: { $lte: checkOutDate },
-          checkOut: { $gte: checkInDate },
+          checkIn: { $lte: checkInDate },
+          checkOut: { $gt: checkInDate }
         },
-      ],
+        {
+          checkIn: { $lt: checkOutDate },
+          checkOut: { $gte: checkOutDate }
+        },
+        {
+          checkIn: { $gte: checkInDate },
+          checkOut: { $lte: checkOutDate }
+        }
+      ]
     });
 
     if (existingBooking) {
+      console.log('Found conflicting booking:', {
+        existingCheckIn: existingBooking.checkIn,
+        existingCheckOut: existingBooking.checkOut,
+        requestedCheckIn: checkInDate,
+        requestedCheckOut: checkOutDate,
+        status: existingBooking.status
+      });
       return res.status(400).json({ message: 'Room is not available for the selected dates' });
     }
 
-    const nights = Math.ceil((checkOutDate - checkInDate) / (1000 * 60 * 60 * 24));
+    const timeDiff = checkOutDate.getTime() - checkInDate.getTime();
+    const nights = Math.ceil(timeDiff / (1000 * 3600 * 24));
     const totalPrice = room.price * nights;
 
     const booking = new Booking({
