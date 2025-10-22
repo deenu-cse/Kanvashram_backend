@@ -64,4 +64,4 @@ async function sendWelcomeEmail({ to, guestName, roomName, checkIn, checkOut, to
   }
 }
 
-module.exports = { sendWelcomeEmail }; 
+export default sendWelcomeEmail;

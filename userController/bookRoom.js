@@ -1,6 +1,6 @@
 const Room = require('../models/Rooms');
 const Booking = require('../models/Booking');
-const { sendWelcomeEmail } = require('../utils/bookingWelcomeEmail');
+const sendWelcomeEmail  = require('../utils/bookingWelcomeEmail');
 
 exports.createBooking = async (req, res) => {
   try {
