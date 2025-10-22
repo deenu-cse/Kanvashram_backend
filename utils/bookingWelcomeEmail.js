@@ -1,12 +1,7 @@
-
-async function getResend() {
-  const { Resend } = await import('resend');
-  return new Resend(process.env.RESEND_API_KEY);
-}
-
-async function sendWelcomeEmail({ to, guestName, roomName, checkIn, checkOut, totalPrice, bookingId }) {
+const sendWelcomeEmail = async ({ to, guestName, roomName, checkIn, checkOut, totalPrice, bookingId }) => {
   try {
-    const resend = await getResend();
+    const { Resend } = require('resend'); 
+    const resend = new Resend(process.env.RESEND_API_KEY);
 
     const { data, error } = await resend.emails.send({
       from: 'noreply@gurukulkanvashram.com',
@@ -58,10 +53,10 @@ async function sendWelcomeEmail({ to, guestName, roomName, checkIn, checkOut, to
     if (error) throw error;
     return data;
 
-  } catch (error) {
-    console.error('Error sending welcome email:', error);
-    throw error;
+  } catch (err) {
+    console.error('Error sending welcome email:', err);
+    throw err;
   }
-}
+};
 
-export default sendWelcomeEmail;
+module.exports = sendWelcomeEmail; 
