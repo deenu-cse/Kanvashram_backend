@@ -16,7 +16,7 @@ app.use('/auth', require('./routes/auth'));
 app.use('/rooms', require('./routes/rooms'));
 app.use('/bookings', require('./routes/bookings'));
 app.use('/admins', require('./routes/admins'));
-
+app.use('/', require('./routes/qrPaymentRoutes'));
 //userRoutes
 
 app.use('/user', require('./userRoutes/bookingRoutes'))

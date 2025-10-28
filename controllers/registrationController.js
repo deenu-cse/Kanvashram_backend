@@ -234,7 +234,6 @@ exports.getSeatAvailability = async (req, res) => {
   }
 };
 
-// Get registration by ID
 exports.getRegistration = async (req, res) => {
   try {
     const { id } = req.params;
