@@ -1,19 +1,19 @@
+const RoomCategory = require('../models/RoomCategory');
 const Room = require('../models/Rooms');
 const Booking = require('../models/Booking');
-const sendWelcomeEmail  = require('../utils/bookingWelcomeEmail');
+const sendWelcomeEmail = require('../utils/bookingWelcomeEmail');
 
 exports.createBooking = async (req, res) => {
   try {
-    const { roomId, guestName, guestEmail, guestPhone, guests, checkIn, checkOut, notes } = req.body;
+    const { categoryId, guestName, guestEmail, guestPhone, guests, checkIn, checkOut, notes } = req.body;
 
-    if (!roomId || !guestName || !guestEmail || !guestPhone || !guests || !checkIn || !checkOut) {
+    if (!categoryId || !guestName || !guestEmail || !guestPhone || !guests || !checkIn || !checkOut) {
       return res.status(400).json({ message: 'All fields are required' });
     }
 
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
 
-    // Validate dates
     if (checkInDate >= checkOutDate) {
       return res.status(400).json({ message: 'Check-out date must be after check-in date' });
     }
@@ -22,25 +22,24 @@ exports.createBooking = async (req, res) => {
       return res.status(400).json({ message: 'Check-in date cannot be in the past' });
     }
 
-    const room = await Room.findById(roomId);
-    if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+    const category = await RoomCategory.findById(categoryId);
+    if (!category) {
+      return res.status(404).json({ message: 'Room category not found' });
     }
 
-    if (room.status !== 'available') {
-      return res.status(400).json({ message: 'Room is not available' });
+    if (category.status !== 'available') {
+      return res.status(400).json({ message: 'Room category is not available' });
     }
 
-    // Check guest count
-    if (guests > room.maxGuests) {
+    if (guests > category.maxGuests) {
       return res.status(400).json({ 
-        message: `This room can only accommodate ${room.maxGuests} guest(s)` 
+        message: `This room can only accommodate ${category.maxGuests} guest(s)` 
       });
     }
 
-    const existingBooking = await Booking.findOne({
-      room: roomId,
-      status: { $in: ['confirmed', 'checked-in'] }, 
+    const bookedRooms = await Booking.find({
+      status: { $in: ['confirmed', 'checked-in'] },
+      category: categoryId,
       $or: [
         {
           checkIn: { $lte: checkInDate },
@@ -55,25 +54,27 @@ exports.createBooking = async (req, res) => {
           checkOut: { $lte: checkOutDate }
         }
       ]
+    }).select('room');
+
+    const bookedRoomIds = bookedRooms.map(booking => booking.room.toString());
+
+    const availableRoom = await Room.findOne({
+      category: categoryId,
+      status: 'available',
+      _id: { $nin: bookedRoomIds }
     });
 
-    if (existingBooking) {
-      console.log('Found conflicting booking:', {
-        existingCheckIn: existingBooking.checkIn,
-        existingCheckOut: existingBooking.checkOut,
-        requestedCheckIn: checkInDate,
-        requestedCheckOut: checkOutDate,
-        status: existingBooking.status
-      });
-      return res.status(400).json({ message: 'Room is not available for the selected dates' });
+    if (!availableRoom) {
+      return res.status(400).json({ message: 'No rooms available for the selected dates' });
     }
 
     const timeDiff = checkOutDate.getTime() - checkInDate.getTime();
     const nights = Math.ceil(timeDiff / (1000 * 3600 * 24));
-    const totalPrice = room.price * nights;
+    const totalPrice = category.finalPrice * nights;
 
     const booking = new Booking({
-      room: roomId,
+      category: categoryId,
+      room: availableRoom._id,
       guestName,
       guestEmail,
       guestPhone,
@@ -87,13 +88,21 @@ exports.createBooking = async (req, res) => {
     });
 
     await booking.save();
-    await booking.populate('room');
+
+    availableRoom.status = 'occupied';
+    await availableRoom.save();
+
+    category.availableRooms -= 1;
+    await category.save();
+
+    await booking.populate('category').populate('room');
 
     try {
       await sendWelcomeEmail({
         to: guestEmail,
         guestName,
-        roomName: room.name,
+        roomName: category.name,
+        roomNumber: availableRoom.roomNumber,
         checkIn: checkInDate.toDateString(),
         checkOut: checkOutDate.toDateString(),
         totalPrice,

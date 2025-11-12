@@ -1,53 +1,26 @@
+// models/Room.js
 const mongoose = require('mongoose');
 
 const roomSchema = new mongoose.Schema({
-  name: {
+  roomNumber: {
     type: String,
     required: true,
+    unique: true,
     trim: true
   },
-  description: {
-    type: String,
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RoomCategory',
     required: true
   },
-  images: [{
-    type: String,
-    required: true
-  }],
-  price: {
-    type: Number,
-    required: true,
-    min: 0
-  },
-  discount: {
-    type: Number,
-    default: 0,
-    min: 0,
-    max: 100
-  },
-  beds: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  maxGuests: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  type: {
-    type: String,
-    required: true,
-    enum: ['single', 'double', 'suite', 'dormitory'],
-    default: 'single'
-  },
-  amenities: [{
-    type: String
-  }],
   status: {
     type: String,
-    enum: ['available', 'occupied', 'maintenance'],
+    enum: ['available', 'occupied', 'maintenance', 'cleaning'],
     default: 'available'
+  },
+  floor: {
+    type: Number,
+    required: true
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
@@ -58,8 +31,7 @@ const roomSchema = new mongoose.Schema({
   timestamps: true
 });
 
-roomSchema.virtual('finalPrice').get(function() {
-  return this.price - (this.price * this.discount / 100);
-});
+roomSchema.index({ category: 1, status: 1 });
+roomSchema.index({ roomNumber: 1 });
 
 module.exports = mongoose.model('Room', roomSchema);

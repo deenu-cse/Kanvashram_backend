@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const bookingSchema = new mongoose.Schema({
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'RoomCategory',
+    required: true
+  },
   room: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Room',
@@ -50,7 +55,7 @@ const bookingSchema = new mongoose.Schema({
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'refunded'],
+    enum: ['pending', 'paid', 'refunded', 'partially-paid'],
     default: 'pending'
   },
   createdBy: {
@@ -61,7 +66,8 @@ const bookingSchema = new mongoose.Schema({
   timestamps: true
 });
 
-bookingSchema.index({ room: 1, checkIn: 1, checkOut: 1 });
+bookingSchema.index({ category: 1, checkIn: 1, checkOut: 1 });
+bookingSchema.index({ room: 1 });
 bookingSchema.index({ guestEmail: 1 });
 bookingSchema.index({ status: 1 });
 

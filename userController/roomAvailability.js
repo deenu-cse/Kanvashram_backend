@@ -1,6 +1,7 @@
-const Booking = require("../models/Booking");
-const Rooms = require("../models/Rooms");
 
+const Booking = require("../models/Booking");
+const RoomCategory = require("../models/RoomCategory");
+const Room = require("../models/Rooms");
 
 exports.checkAvailability = async (req, res) => {
   try {
@@ -35,9 +36,9 @@ exports.checkAvailability = async (req, res) => {
       const [min, max] = priceRange.split('-').map(p =>
         p.includes('+') ? Number.POSITIVE_INFINITY : parseInt(p.replace('₹', '').replace(',', ''))
       );
-      query.price = { $gte: min };
+      query.basePrice = { $gte: min };
       if (max !== Number.POSITIVE_INFINITY) {
-        query.price = { ...query.price, $lte: max };
+        query.basePrice = { ...query.basePrice, $lte: max };
       }
     }
 
@@ -45,8 +46,9 @@ exports.checkAvailability = async (req, res) => {
       query.maxGuests = { $gte: parseInt(guests) };
     }
 
-    const allRooms = await Rooms.find(query);
+    const allCategories = await RoomCategory.find(query);
 
+    // Get booked rooms for the date range
     const bookedRooms = await Booking.find({
       status: { $in: ['confirmed', 'checked-in'] },
       $or: [
@@ -59,12 +61,32 @@ exports.checkAvailability = async (req, res) => {
 
     const bookedRoomIds = bookedRooms.map(booking => booking.room.toString());
 
-    const availableRooms = allRooms.filter(room => !bookedRoomIds.includes(room._id.toString()));
+    // Get available rooms for each category
+    const availableCategories = await Promise.all(
+      allCategories.map(async (category) => {
+        const availableRoomsInCategory = await Room.find({
+          category: category._id,
+          status: 'available',
+          _id: { $nin: bookedRoomIds }
+        });
+
+        return {
+          ...category.toObject(),
+          availableRoomsCount: availableRoomsInCategory.length,
+          availableRooms: availableRoomsInCategory
+        };
+      })
+    );
+
+    // Filter categories that have at least one available room
+    const categoriesWithAvailability = availableCategories.filter(
+      category => category.availableRoomsCount > 0
+    );
 
     res.status(200).json({
       success: true,
-      data: availableRooms,
-      total: availableRooms.length,
+      data: categoriesWithAvailability,
+      total: categoriesWithAvailability.length,
     });
   } catch (error) {
     console.error('Availability check error:', error);
@@ -91,44 +113,54 @@ exports.checkRoomAvailability = async (req, res) => {
       return res.status(400).json({ message: 'Check-out date must be after check-in date' });
     }
 
-    const room = await Rooms.findById(id);
-    if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+    const category = await RoomCategory.findById(id);
+    if (!category) {
+      return res.status(404).json({ message: 'Room category not found' });
     }
 
-    if (room.status !== 'available') {
+    if (category.status !== 'available') {
       return res.status(200).json({
         success: true,
         available: false,
-        message: 'Room is not available',
+        message: 'Room category is not available',
       });
     }
 
-    if (guests && guests > room.maxGuests) {
+    if (guests && guests > category.maxGuests) {
       return res.status(200).json({
         success: true,
         available: false,
-        message: `Room can accommodate maximum ${room.maxGuests} guests`,
+        message: `Room can accommodate maximum ${category.maxGuests} guests`,
       });
     }
 
-    const existingBooking = await Booking.findOne({
-      room: id,
+    // Check available rooms in this category for the dates
+    const bookedRooms = await Booking.find({
       status: { $in: ['confirmed', 'checked-in'] },
+      category: id,
       $or: [
         {
           checkIn: { $lte: checkOutDate },
           checkOut: { $gte: checkInDate },
         },
       ],
+    }).select('room');
+
+    const bookedRoomIds = bookedRooms.map(booking => booking.room.toString());
+
+    const availableRoom = await Room.findOne({
+      category: id,
+      status: 'available',
+      _id: { $nin: bookedRoomIds }
     });
 
-    const available = !existingBooking;
+    const available = !!availableRoom;
 
     res.status(200).json({
       success: true,
       available,
-      message: available ? 'Room is available' : 'Room is not available for the selected dates',
+      availableRoom: available ? availableRoom : null,
+      message: available ? 'Room is available' : 'No rooms available for the selected dates',
     });
   } catch (error) {
     console.error('Room availability check error:', error);
@@ -143,15 +175,15 @@ exports.getRoomDetails = async (req, res) => {
   const { id } = req.params;
 
   try {
-    const room = await Rooms.findById(id);
+    const category = await RoomCategory.findById(id);
 
-    if (!room) {
-      return res.status(404).json({ message: 'Room not found' });
+    if (!category) {
+      return res.status(404).json({ message: 'Room category not found' });
     }
 
     res.status(200).json({
       success: true,
-      data: room,
+      data: category,
     });
   } catch (error) {
     console.error('Room details error:', error);
