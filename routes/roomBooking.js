@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { createBooking } = require('../../userController/bookRoom');
-const { checkAvailability, checkRoomAvailability, getRoomDetails } = require('../../userController/roomAvailability');
+const { createBooking } = require('../userController/bookRoom');
+const { checkAvailability, checkRoomAvailability, getRoomDetails } = require('../userController/roomAvailability');
 
 console.log("📦 roomBooking routes loaded");
 

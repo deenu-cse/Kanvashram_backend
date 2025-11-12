@@ -17,4 +17,5 @@ router.post('/verify-payment', verifyPayment);
 
 router.get('/:id', getRegistration);
 
+
 module.exports = router;
