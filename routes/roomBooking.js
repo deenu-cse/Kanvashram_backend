@@ -10,7 +10,7 @@ router.post('/book', createBooking);
 
 router.post('/room/availability', checkAvailability);
 
-router.post('/room/:id/check', checkRoomAvailability);
 router.get('/room/:id', getRoomDetails);
+router.post('/room/:id/check', checkRoomAvailability);
 
 module.exports = router;

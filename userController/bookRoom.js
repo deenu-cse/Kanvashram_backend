@@ -95,18 +95,21 @@ exports.createBooking = async (req, res) => {
     category.availableRooms -= 1;
     await category.save();
 
-    await booking.populate('category').populate('room');
+    // CORRECTED: Use await with populate and chain properly
+    const populatedBooking = await Booking.findById(booking._id)
+      .populate('category')
+      .populate('room');
 
     try {
       await sendWelcomeEmail({
         to: guestEmail,
         guestName,
-        roomName: category.name,
-        roomNumber: availableRoom.roomNumber,
+        roomName: populatedBooking.category.name,
+        roomNumber: populatedBooking.room.roomNumber,
         checkIn: checkInDate.toDateString(),
         checkOut: checkOutDate.toDateString(),
         totalPrice,
-        bookingId: booking._id,
+        bookingId: populatedBooking._id,
       });
     } catch (emailError) {
       console.error('Failed to send welcome email:', emailError);
@@ -114,7 +117,7 @@ exports.createBooking = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      data: booking,
+      data: populatedBooking,
       message: 'Booking created successfully',
     });
   } catch (error) {

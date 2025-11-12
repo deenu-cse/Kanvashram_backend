@@ -75,39 +75,35 @@ exports.updateBookingStatus = async (req, res) => {
     booking.status = status;
     await booking.save();
 
-    // Handle room and category updates based on status change
     if (status === 'checked-in') {
-      // Room is already occupied when booking is confirmed
       await Room.findByIdAndUpdate(booking.room._id, { status: 'occupied' });
     } else if (status === 'checked-out' || status === 'cancelled') {
-      // Free up the room
       await Room.findByIdAndUpdate(booking.room._id, { status: 'available' });
       
-      // Increase available rooms count in category
       await RoomCategory.findByIdAndUpdate(
         booking.category._id,
         { $inc: { availableRooms: 1 } }
       );
     } else if (oldStatus === 'checked-out' && status === 'confirmed') {
-      // Re-occupy the room if changing back from checked-out
       await Room.findByIdAndUpdate(booking.room._id, { status: 'occupied' });
       
-      // Decrease available rooms count in category
       await RoomCategory.findByIdAndUpdate(
         booking.category._id,
         { $inc: { availableRooms: -1 } }
       );
     }
 
-    await booking.populate('category').populate('room').populate('createdBy', 'name email');
+    const updatedBooking = await Booking.findById(booking._id)
+      .populate('category')
+      .populate('room')
+      .populate('createdBy', 'name email');
     
-    res.json(booking);
+    res.json(updatedBooking);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
 };
 
-// Get booking statistics
 exports.getBookingStats = async (req, res) => {
   try {
     const totalBookings = await Booking.countDocuments();

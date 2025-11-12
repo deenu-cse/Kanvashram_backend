@@ -28,6 +28,7 @@ app.use('/room-categories', require('./routes/roomCategories'));
 
 // Routes
 app.use('/auth', require('./routes/auth'));
+app.use('/admin/auth', require('./routes/adminAuth'));
 app.use('/rooms', require('./routes/rooms'));
 app.use('/bookings', require('./routes/bookings'));
 app.use('/admins', require('./routes/admins'));

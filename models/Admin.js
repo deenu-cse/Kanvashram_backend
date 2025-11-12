@@ -36,6 +36,14 @@ const adminSchema = new mongoose.Schema({
   invitedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Admin'
+  },
+  resetPasswordOTP: {
+    type: String,
+    select: false
+  },
+  resetPasswordOTPExpiry: {
+    type: Date,
+    select: false
   }
 }, {
   timestamps: true
